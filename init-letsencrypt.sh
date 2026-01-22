@@ -32,9 +32,9 @@ if [ -d "certbot/conf/live/$DOMAIN" ]; then
 fi
 
 # Nginx 컨테이너가 실행 중인지 확인
-if docker compose ps | grep -q "coldmail_nginx.*Up"; then
+if docker compose -f docker-compose.prod.yml ps | grep -q "coldmail_nginx.*Up"; then
     echo "🛑 Nginx 컨테이너 중지 중..."
-    docker compose stop nginx
+    docker compose -f docker-compose.prod.yml stop nginx
     NGINX_WAS_RUNNING=true
 else
     NGINX_WAS_RUNNING=false
@@ -42,7 +42,7 @@ fi
 
 # Certbot standalone 모드로 인증서 발급
 echo "🔐 SSL 인증서 발급 중..."
-docker compose run --rm certbot certonly \
+docker compose -f docker-compose.prod.yml run --rm certbot certonly \
     --standalone \
     --preferred-challenges http \
     -d $DOMAIN \
@@ -59,14 +59,14 @@ if [ $? -eq 0 ]; then
     # 인증서 정보 출력
     echo ""
     echo "📋 인증서 정보:"
-    docker compose run --rm certbot certificates
+    docker compose -f docker-compose.prod.yml run --rm certbot certificates
     
     # nginx 설정 파일 안내
     echo ""
     echo "================================================"
     echo "다음 단계:"
     echo "1. nginx/conf.d/coldmail.conf 파일에서 HTTPS server 블록 주석 해제"
-    echo "2. docker compose up -d 로 서비스 재시작"
+    echo "2. docker compose -f docker-compose.prod.yml up -d 로 서비스 재시작"
     echo "================================================"
 else
     echo "❌ SSL 인증서 발급에 실패했습니다."
@@ -79,10 +79,10 @@ if [ "$NGINX_WAS_RUNNING" = true ]; then
     read -p "Nginx를 다시 시작하시겠습니까? (Y/n): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Nn]$ ]]; then
-        echo "ℹ️  나중에 'docker compose start nginx'로 시작하세요."
+        echo "ℹ️  나중에 'docker compose -f docker-compose.prod.yml start nginx'로 시작하세요."
     else
         echo "🚀 Nginx 시작 중..."
-        docker compose start nginx
+        docker compose -f docker-compose.prod.yml start nginx
     fi
 fi
 
