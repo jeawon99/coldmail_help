@@ -1,0 +1,146 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: coldmail_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_volume:/app/staticfiles:ro
+      - media_volume:/app/mediafiles:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    depends_on:
+      - web
+    networks:
+      - coldmail_network
+    restart: always
+    command: '/bin/sh -c ''while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'''
+
+  certbot:
+    image: certbot/certbot
+    container_name: coldmail_certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - coldmail_network
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: coldmail_db
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
+    networks:
+      - coldmail_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: coldmail_redis
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    networks:
+      - coldmail_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: always
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}/coldmail-app:${VERSION:-latest}
+    container_name: coldmail_web
+    command: gunicorn --bind 0.0.0.0:8000 --workers 4 --threads 2 --timeout 60 --max-requests 1000 --max-requests-jitter 50 coldmail_project.wsgi:application
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/mediafiles
+      - ./logs:/app/logs
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=coldmail_project.settings.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: always
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}/coldmail-app:${VERSION:-latest}
+    container_name: coldmail_worker
+    command: celery -A coldmail_project worker --loglevel=info --concurrency=4 --max-tasks-per-child=100
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=coldmail_project.settings.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: always
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}/coldmail-app:${VERSION:-latest}
+    container_name: coldmail_beat
+    command: celery -A coldmail_project beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - ./logs:/app/logs
+    env_file:
+      - .env.production
+    environment:
+      - DJANGO_SETTINGS_MODULE=coldmail_project.settings.prod
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: always
+
+volumes:
+  mysql_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+networks:
+  coldmail_network:
+    driver: bridge

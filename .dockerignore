@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+db.sqlite3
+/staticfiles/
+/mediafiles/
+/logs/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Tests & Scripts
+*.xlsx
+*.csv
+test_*.py
+test_*.ps1
+check_*.py
+prepare_*.py
+update_*.py
+import_*.py
+retry_*.py
+
+# Documentation
+STAGE_*.md
+DEPLOYMENT_*.md
+!README.md
+
+# Docker
+docker-compose.dev.yml

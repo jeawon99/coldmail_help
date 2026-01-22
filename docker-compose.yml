@@ -1,0 +1,125 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: coldmail_db
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-coldmail_db}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      MYSQL_USER: ${DB_USER:-coldmail_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-userpassword}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - coldmail_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: coldmail_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - coldmail_network
+
+  web:
+    build: .
+    container_name: coldmail_web
+    command: gunicorn --bind 0.0.0.0:8000 coldmail_project.wsgi:application
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_ENV=prod
+      - DEBUG=${DEBUG:-False}
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=${DB_NAME:-coldmail_db}
+      - DB_USER=${DB_USER:-coldmail_user}
+      - DB_PASSWORD=${DB_PASSWORD:-userpassword}
+      - DB_HOST=db
+      - DB_PORT=3306
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+
+  celery_worker:
+    build: .
+    container_name: coldmail_worker
+    command: celery -A coldmail_project worker --loglevel=info --concurrency=4
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_ENV=prod
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=${DB_NAME:-coldmail_db}
+      - DB_USER=${DB_USER:-coldmail_user}
+      - DB_PASSWORD=${DB_PASSWORD:-userpassword}
+      - DB_HOST=db
+      - DB_PORT=3306
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: unless-stopped
+
+  celery_beat:
+    build: .
+    container_name: coldmail_beat
+    command: celery -A coldmail_project beat --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_ENV=prod
+      - SECRET_KEY=${SECRET_KEY}
+      - DB_NAME=${DB_NAME:-coldmail_db}
+      - DB_USER=${DB_USER:-coldmail_user}
+      - DB_PASSWORD=${DB_PASSWORD:-userpassword}
+      - DB_HOST=db
+      - DB_PORT=3306
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  static_volume:
+
+networks:
+  coldmail_network:
+    driver: bridge

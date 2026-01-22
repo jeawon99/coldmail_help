@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  # Redis - Celery 메시지 브로커
+  redis:
+    image: redis:7-alpine
+    container_name: coldmail_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - coldmail_network
+
+  # Celery Worker
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coldmail_worker_dev
+    command: celery -A coldmail_project worker --loglevel=info --concurrency=2
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_ENV=dev
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: unless-stopped
+
+  # Celery Beat (선택사항 - 주기적 태스크 스케줄러)
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coldmail_beat_dev
+    command: celery -A coldmail_project beat --loglevel=info
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_ENV=dev
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: unless-stopped
+
+  # Flower - Celery 모니터링 (선택사항)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: coldmail_flower_dev
+    command: celery -A coldmail_project flower --port=5555
+    ports:
+      - "5555:5555"
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_ENV=dev
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - coldmail_network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  coldmail_network:
+    driver: bridge
