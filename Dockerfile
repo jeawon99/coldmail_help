@@ -26,8 +26,7 @@ WORKDIR /app
 
 # 환경 변수 설정
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH=/root/.local/bin:$PATH
+    PYTHONUNBUFFERED=1
 
 # 런타임 의존성만 설치
 RUN apt-get update && \
@@ -36,8 +35,8 @@ RUN apt-get update && \
     netcat-traditional && \
     rm -rf /var/lib/apt/lists/*
 
-# 빌더 스테이지에서 설치된 패키지 복사
-COPY --from=builder /root/.local /root/.local
+# 빌더 스테이지에서 설치된 패키지를 시스템 전역으로 복사
+COPY --from=builder /root/.local /usr/local
 
 # 프로젝트 파일 복사
 COPY . .
@@ -47,13 +46,6 @@ RUN mkdir -p /app/staticfiles /app/mediafiles /app/logs
 
 # 엔트리포인트 실행 권한
 RUN chmod +x /app/entrypoint.sh
-
-# 비root 유저 생성 및 권한 설정 (보안)
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-
-# 비root 유저로 전환
-USER appuser
 
 # 포트 노출
 EXPOSE 8000
