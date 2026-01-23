@@ -26,6 +26,25 @@ DATABASES = {
     }
 }
 
+# CORS settings
+CORS_ALLOWED_ORIGINS = [
+    "https://www.figma.com",
+    "https://kilt-dial-30719391.figma.site",
+    # 추가 프론트엔드 도메인이 있으면 여기에 추가
+]
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
 # Security settings
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False') == 'True'
