@@ -2,6 +2,16 @@
 
 Django 기반의 콜드메일 발송 시스템입니다.
 
+## 📚 API 문서
+
+- **Swagger UI**: [https://coldmail.clfy.ai.kr/api/docs/](https://coldmail.clfy.ai.kr/api/docs/)
+- **Redoc**: [https://coldmail.clfy.ai.kr/api/redoc/](https://coldmail.clfy.ai.kr/api/redoc/)
+- **상세 가이드**: [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+  - 전체 API 사용법
+  - React 프론트엔드 예시
+  - 에러 처리 가이드
+  - 필드 상세 설명
+
 ## 기술 스택
 
 - **Python**: 3.12.x
