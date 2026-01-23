@@ -27,12 +27,11 @@ DATABASES = {
 }
 
 # CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://www.figma.com",
-    "https://kilt-dial-30719391.figma.site",
-    # 추가 프론트엔드 도메인이 있으면 여기에 추가
-]
-CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = os.getenv(
+    'CORS_ALLOWED_ORIGINS', 
+    'https://www.figma.com,https://kilt-dial-30719391.figma.site'
+).split(',')
+CORS_ALLOW_CREDENTIALS = os.getenv('CORS_ALLOW_CREDENTIALS', 'True') == 'True'
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
