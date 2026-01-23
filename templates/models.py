@@ -90,6 +90,20 @@ class TemplateVersion(BaseModel):
         help_text="개인화 수준 (0-2)"
     )
     
+    # 첨부파일 (외부 URL)
+    attachment_url = models.URLField(
+        null=True,
+        blank=True,
+        max_length=500,
+        help_text="첨부파일 URL (예: https://cdn.example.com/file.pdf)"
+    )
+    attachment_name = models.CharField(
+        null=True,
+        blank=True,
+        max_length=255,
+        help_text="첨부파일 이름 (예: 제품카탈로그.pdf)"
+    )
+    
     class Meta:
         db_table = 'template_version'
         ordering = ['-version']

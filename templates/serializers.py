@@ -14,7 +14,8 @@ class TemplateVersionSerializer(BaseSerializer):
         fields = [
             'id', 'template', 'version', 'subject_tpl', 'body_tpl',
             'format', 'subject_length', 'body_length', 'cta_type',
-            'personalization_level', 'created_at'
+            'personalization_level', 'attachment_url', 'attachment_name',
+            'created_at'
         ]
         read_only_fields = [
             'id', 'version', 'subject_length', 'body_length', 'created_at'

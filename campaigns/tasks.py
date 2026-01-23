@@ -6,9 +6,10 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from django.conf import settings
 from jinja2 import Template
+import requests
 
 from campaigns.models import SendJob, EmailMessage, EmailEvent
 
@@ -61,13 +62,40 @@ def send_single_email_task(self, send_job_id):
         
         # 이메일 발송
         try:
-            send_mail(
+            # EmailMessage 객체 생성
+            email = EmailMessage(
                 subject=subject,
-                message=body,
+                body=body,
                 from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[send_job.to_email],
-                fail_silently=False,
+                to=[send_job.to_email],
             )
+            
+            # HTML 포맷 설정
+            if send_job.template_version.format == 'html':
+                email.content_subtype = "html"
+            
+            # 첨부파일 처리
+            if send_job.template_version.attachment_url:
+                try:
+                    response = requests.get(
+                        send_job.template_version.attachment_url,
+                        timeout=10
+                    )
+                    response.raise_for_status()
+                    
+                    attachment_name = send_job.template_version.attachment_name or 'attachment.pdf'
+                    email.attach(
+                        filename=attachment_name,
+                        content=response.content,
+                        mimetype=response.headers.get('content-type', 'application/octet-stream')
+                    )
+                    logger.info(f"Attachment added: {attachment_name}")
+                except Exception as att_error:
+                    logger.warning(f"Failed to attach file for SendJob {send_job_id}: {att_error}")
+                    # 첨부파일 실패해도 이메일은 발송
+            
+            # 발송
+            email.send(fail_silently=False)
             
             # 발송 성공: EmailMessage 생성, SendJob 상태 업데이트
             with transaction.atomic():

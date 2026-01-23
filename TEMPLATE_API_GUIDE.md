@@ -285,7 +285,9 @@ Content-Type: application/json
   "body_tpl": "안녕하세요 {{ channel_name }}님,\n\n{% if subscriber_count > 100000 %}인기 크리에이터시군요!{% endif %}\n\n협업 제안 드립니다.",
   "format": "html",
   "cta_type": "reply",
-  "personalization_level": 2
+  "personalization_level": 2,
+  "attachment_url": "https://cdn.clfy.cloud/files/product-catalog.pdf",
+  "attachment_name": "제품 카탈로그.pdf"
 }
 ```
 
@@ -298,6 +300,8 @@ Content-Type: application/json
   - 0: 개인화 없음
   - 1: 이름/채널 정도만
   - 2: 세밀한 개인화
+- `attachment_url`: 첨부파일 URL (선택, 외부 호스팅 파일)
+- `attachment_name`: 첨부파일 이름 (선택, 예: "카탈로그.pdf")
 
 **응답:**
 ```json
@@ -500,7 +504,7 @@ const createTemplate = async () => {
 };
 ```
 
-#### Step 2: 버전 추가
+#### Step 2: 버전 추가 (첨부파일 포함)
 ```javascript
 const addVersion = async (templateId) => {
   const response = await fetch(
@@ -528,6 +532,7 @@ CLFY에서 마케팅을 담당하고 있는 김재원입니다.
 {% endif %}
 
 저희와 함께 프로젝트를 진행해보시는 것은 어떠신가요?
+첨부한 제품 카탈로그를 참고해주세요.
 
 회신 부탁드립니다.
 감사합니다.
@@ -537,7 +542,10 @@ CLFY
 contact@clfy.cloud`,
         format: "html",
         cta_type: "reply",
-        personalization_level: 2
+        personalization_level: 2,
+        // 첨부파일 추가
+        attachment_url: "https://cdn.clfy.cloud/files/product-catalog.pdf",
+        attachment_name: "제품카탈로그.pdf"
       })
     }
   );
@@ -908,7 +916,92 @@ const testWithSample = async (versionId) => {
 
 ---
 
-## 📞 문의
+## � 첨부파일 사용 가이드
+
+### 첨부파일 기능
+
+템플릿 버전에 PDF, 이미지, Excel 등의 파일을 첨부할 수 있습니다. 이메일 발송 시 자동으로 첨부됩니다.
+
+### 첨부파일 추가
+
+```http
+POST /api/v1/templates/{template_id}/versions/
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "subject_tpl": "제품 카탈로그를 보내드립니다",
+  "body_tpl": "안녕하세요,\n\n첨부된 카탈로그를 확인해주세요.",
+  "format": "html",
+  "attachment_url": "https://cdn.example.com/catalog.pdf",
+  "attachment_name": "2024_제품카탈로그.pdf"
+}
+```
+
+### 지원하는 파일 형식
+
+- **문서**: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX
+- **이미지**: PNG, JPG, JPEG, GIF
+- **압축**: ZIP, RAR
+- **기타**: TXT, CSV
+
+### 주의사항
+
+1. **외부 호스팅 필수**: 파일은 외부 URL로 호스팅되어야 함
+2. **권장 CDN**: AWS S3, Cloudinary, Google Cloud Storage
+3. **파일 크기**: 25MB 이하 권장 (이메일 서버 제한)
+4. **접근 권한**: URL은 public 또는 signed URL 사용
+5. **파일명**: 한글 파일명 가능 (자동 인코딩)
+
+### 실전 예시
+
+#### PDF 카탈로그 첨부
+```javascript
+const createTemplateWithPDF = async (templateId) => {
+  const response = await fetch(
+    `https://coldmail.clfy.ai.kr/api/v1/templates/${templateId}/versions/`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subject_tpl: "[CLFY] 제품 소개서를 보내드립니다",
+        body_tpl: `안녕하세요 {{ channel_name }}님,
+
+저희 CLFY의 제품 소개서를 첨부파일로 보내드립니다.
+
+자세한 내용은 첨부된 PDF를 참고해주세요.
+
+감사합니다.`,
+        format: "html",
+        attachment_url: "https://cdn.clfy.cloud/files/CLFY_Product_Guide.pdf",
+        attachment_name: "CLFY_제품소개서.pdf"
+      })
+    }
+  );
+  
+  return await response.json();
+};
+```
+
+### Best Practices
+
+#### ✅ 권장사항
+- PDF는 5MB 이하로 최적화
+- 파일명은 명확하게 (예: "제품소개서_2024.pdf")
+- CDN 사용으로 다운로드 속도 보장
+- 첨부 전 미리보기로 확인
+
+#### ❌ 피해야 할 것
+- 너무 큰 파일 (25MB 초과)
+- 인증 필요한 private URL
+- 만료되는 임시 링크
+
+---
+
+## �📞 문의
 
 - **API 문서**: https://coldmail.clfy.ai.kr/api/docs/
 - **Swagger UI**: https://coldmail.clfy.ai.kr/api/docs/#/templates
