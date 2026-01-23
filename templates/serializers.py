@@ -116,6 +116,19 @@ class TemplateVersionCreateSerializer(serializers.Serializer):
         max_value=2,
         help_text="개인화 수준 (0=기본, 1=중간, 2=높음)"
     )
+    attachment_url = serializers.URLField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text="첨부파일 URL (예: https://cdn.example.com/file.pdf)"
+    )
+    attachment_name = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        max_length=255,
+        help_text="첨부파일 이름 (예: 제품카탈로그.pdf)"
+    )
 
 
 class RenderPreviewSerializer(serializers.Serializer):
